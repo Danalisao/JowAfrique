@@ -720,6 +720,14 @@ def main():
         st.session_state.search_query = ""
     if 'mode_decouverte' not in st.session_state:
         st.session_state.mode_decouverte = True
+    if 'search_results' not in st.session_state:
+        st.session_state.search_results = None
+    if 'african_results' not in st.session_state:
+        st.session_state.african_results = []
+    if 'searched_query_display' not in st.session_state:
+        st.session_state.searched_query_display = ""
+    if 'is_substitution' not in st.session_state:
+        st.session_state.is_substitution = False
     
     # Affichage des éléments principaux
     afficher_titre_principal()
@@ -768,88 +776,59 @@ def main():
             if recipes:
                 recipes = filtrer_recettes(recipes, max_prep_time, max_cook_time, serves)
             
+            # Sauvegarder dans session state
+            st.session_state.search_results = recipes
+            st.session_state.african_results = african_recipes
+            st.session_state.searched_query_display = searched_query
+            st.session_state.is_substitution = is_substitution
+            
             # Sauvegarder l'historique de recherche
             total_results = len(recipes) + len(african_recipes)
             save_search_history(query, total_results)
             
-            if recipes or african_recipes:
-                # Affichage des résultats principaux
-                if is_substitution and recipes:
-                    afficher_message_personnalise(query, searched_query)
+    
+    # Afficher les résultats depuis session state (persiste après favoris)
+    if st.session_state.search_results is not None or st.session_state.african_results:
+        recipes = st.session_state.search_results if st.session_state.search_results else []
+        african_recipes = st.session_state.african_results
+        searched_query = st.session_state.searched_query_display
+        is_substitution = st.session_state.is_substitution
+        
+        if recipes or african_recipes:
+            # Affichage des résultats principaux
+            if is_substitution and recipes:
+                afficher_message_personnalise(st.session_state.search_query, searched_query)
+            
+            # Afficher les recettes africaines d'abord si disponibles
+            if african_recipes:
+                st.markdown(f"### 🌍 Recettes Africaines Traditionnelles ({len(african_recipes)} recettes)")
+                cols_per_row = 2
+                for i in range(0, len(african_recipes), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    for j, recipe in enumerate(african_recipes[i:i+cols_per_row]):
+                        afficher_carte_recette_africaine(recipe, cols[j])
                 
-                # Afficher les recettes africaines d'abord si disponibles
-                if african_recipes:
-                    st.markdown(f"### 🌍 Recettes Africaines Traditionnelles ({len(african_recipes)} recettes)")
-                    cols_per_row = 2
-                    for i in range(0, len(african_recipes), cols_per_row):
-                        cols = st.columns(cols_per_row)
-                        for j, recipe in enumerate(african_recipes[i:i+cols_per_row]):
-                            afficher_carte_recette_africaine(recipe, cols[j])
-                    
-                    st.divider()
+                st.divider()
+            
+            # Puis afficher les recettes Jow
+            if recipes:
+                st.markdown(f"### 🍽️ Recettes Jow pour '{searched_query}' ({len(recipes)} recettes)")
                 
-                # Puis afficher les recettes Jow
-                if recipes:
-                    st.markdown(f"### 🍽️ Recettes Jow pour '{searched_query}' ({len(recipes)} recettes)")
-                    
-                    # Affichage en colonnes
-                    cols_per_row = 2
-                    for i in range(0, len(recipes), cols_per_row):
-                        cols = st.columns(cols_per_row)
-                        for j, recipe in enumerate(recipes[i:i+cols_per_row]):
-                            afficher_carte_recette(recipe, cols[j], is_substitution)
-                
-                # Suggestion de fusion si mode activé
-                afficher_suggestion_fusion()
-                
-            else:
-                # Aucune recette trouvée - Tentative de substitution
-                recipes_alt, substitution, _ = rechercher_recettes_alternatives(query)
-                
-                # Filtrer les recettes alternatives
-                if recipes_alt:
-                    recipes_alt = filtrer_recettes(recipes_alt, max_prep_time, max_cook_time, serves)
-                
-                if recipes_alt:
-                    afficher_message_personnalise(query, substitution)
-                    
-                    # Mise à jour de l'historique
-                    save_search_history(query, len(recipes_alt))
-                    
-                    st.markdown(f"### 🔄 Recettes alternatives avec '{substitution}' ({len(recipes_alt)} recettes)")
-                    
-                    # Affichage des alternatives
-                    cols_per_row = 2
-                    for i in range(0, len(recipes_alt), cols_per_row):
-                        cols = st.columns(cols_per_row)
-                        for j, recipe in enumerate(recipes_alt[i:i+cols_per_row]):
-                            afficher_carte_recette(recipe, cols[j], True)
-                    
-                    afficher_suggestion_fusion()
-                    
-                else:
-                    # Vraiment aucun résultat
-                    st.error("😔 Aucune recette trouvée pour cette recherche.")
-                    st.info("💡 **Suggestions :**")
-                    st.write("• Essaie des mots-clés plus simples (poulet, poisson, riz)")
-                    st.write("• Utilise les suggestions dans la barre latérale")
-                    st.write("• Vérifie l'orthographe de ta recherche")
-                    
-                    # Affichage de quelques recettes populaires
-                    st.markdown("### 🌟 Recettes populaires à découvrir")
-                    cols = st.columns(3)
-                    populaires = ["poulet", "pâtes", "salade"]
-                    for i, mot in enumerate(populaires):
-                        with cols[i]:
-                            if st.button(f"Découvrir {mot}", key=f"popular_{mot}"):
-                                st.session_state.search_query = mot
-                                st.rerun()
+                # Affichage en colonnes
+                cols_per_row = 2
+                for i in range(0, len(recipes), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    for j, recipe in enumerate(recipes[i:i+cols_per_row]):
+                        afficher_carte_recette(recipe, cols[j], is_substitution)
+            
+            # Suggestion de fusion si mode activé
+            afficher_suggestion_fusion()
     
     elif search_clicked and not query:
         st.warning("⚠️ Veuillez saisir un terme de recherche !")
     
     # Message d'accueil si aucune recherche
-    if not st.session_state.search_query:
+    elif not st.session_state.search_query:
         st.markdown("### 👋 Bienvenue dans ton assistant culinaire !")
         
         col1, col2 = st.columns(2)
