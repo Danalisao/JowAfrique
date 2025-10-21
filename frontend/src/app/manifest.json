@@ -1,0 +1,27 @@
+{
+  "name": "JowAfrique - Planificateur de Repas",
+  "short_name": "JowAfrique",
+  "description": "Planificateur intelligent de repas avec recettes camerounaises",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#22c55e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["food", "lifestyle", "productivity"],
+  "lang": "fr",
+  "dir": "ltr"
+}
