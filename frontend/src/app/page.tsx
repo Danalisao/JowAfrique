@@ -11,7 +11,6 @@ import SettingsPage from '@/components/SettingsPage'
 import CartPage from '@/components/CartPage'
 import PlansPage from '@/components/PlansPage'
 import StatisticsPage from '@/components/StatisticsPage'
-import JowDemo from '@/components/JowDemo'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'progress' | 'favorites' | 'settings' | 'cart' | 'plans' | 'statistics'>('home')
@@ -66,11 +65,6 @@ export default function Home() {
         
         {activeTab === 'cart' && (
           <CartPage />
-        )}
-        
-        {/* Démonstration Jow - temporaire */}
-        {activeTab === 'home' && (
-          <JowDemo />
         )}
       </main>
       

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "setup": "node scripts/setup.js",
-    "postinstall": "npm run setup"
+    "postinstall": "npm run setup",
+    "export": "next build && next export"
   },
   "dependencies": {
     "@types/node": "^20",

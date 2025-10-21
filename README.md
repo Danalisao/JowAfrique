@@ -35,14 +35,16 @@
 ```powershell
 git clone https://github.com/your-username/jowafrique.git
 cd jowafrique
-.\start.ps1
+.\scripts\build.ps1
+.\scripts\start-prod.ps1
 ```
 
 **Linux/Mac**
 ```bash
 git clone https://github.com/your-username/jowafrique.git
 cd jowafrique
-python start.py
+./scripts/build.sh
+./scripts/start-prod.sh
 ```
 
 #### Option 2 : Installation manuelle
@@ -200,12 +202,8 @@ CREATE TABLE meal_slots (
 
 ### Tests API
 ```bash
-python test_api.py
-```
-
-### Tests d'intégration
-```bash
-python test_integration.py
+# Les tests sont intégrés dans les scripts de build
+./scripts/build.sh
 ```
 
 ### Tests frontend
