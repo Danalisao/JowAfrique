@@ -2,9 +2,14 @@ import streamlit as st
 from jow_api import Jow
 import time
 from typing import List, Dict
-import psycopg2
+import sqlite3
 import os
 from datetime import datetime
+import google.generativeai as genai
+
+# Configuration de Gemini AI
+GEMINI_API_KEY = "AIzaSyBUysypCabOFa7Nw8hhKYZISiLemk_-kAk"
+genai.configure(api_key=GEMINI_API_KEY)
 
 # Configuration de la page
 st.set_page_config(
@@ -16,9 +21,10 @@ st.set_page_config(
 
 # Fonctions de base de données
 def get_db_connection():
-    """Établit une connexion à la base de données PostgreSQL"""
+    """Établit une connexion à la base de données SQLite"""
     try:
-        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        db_path = os.path.join(os.path.dirname(__file__), 'jowafrique.db')
+        conn = sqlite3.connect(db_path)
         return conn
     except Exception as e:
         st.error(f"Erreur de connexion à la base de données: {str(e)}")
@@ -34,16 +40,16 @@ def init_database():
             # Créer la table favorites
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS favorites (
-                    id SERIAL PRIMARY KEY,
-                    recipe_id VARCHAR(255) NOT NULL,
-                    recipe_name VARCHAR(500) NOT NULL,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recipe_id TEXT NOT NULL,
+                    recipe_name TEXT NOT NULL,
                     recipe_url TEXT,
                     recipe_description TEXT,
                     preparation_time INTEGER,
                     cooking_time INTEGER,
                     covers_count INTEGER,
                     ingredients_data TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(recipe_id)
                 )
             """)
@@ -51,9 +57,9 @@ def init_database():
             # Créer la table search_history
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS search_history (
-                    id SERIAL PRIMARY KEY,
-                    search_query VARCHAR(500) NOT NULL,
-                    search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    search_query TEXT NOT NULL,
+                    search_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                     results_count INTEGER DEFAULT 0
                 )
             """)
@@ -61,16 +67,16 @@ def init_database():
             # Créer la table african_recipes
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS african_recipes (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(500) NOT NULL,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
                     description TEXT,
                     ingredients TEXT,
                     preparation_steps TEXT,
                     preparation_time INTEGER,
                     cooking_time INTEGER,
                     serves INTEGER,
-                    country_origin VARCHAR(100),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    country_origin TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
@@ -139,7 +145,7 @@ def init_database():
                 cursor.executemany("""
                     INSERT INTO african_recipes 
                     (name, description, ingredients, preparation_steps, preparation_time, cooking_time, serves, country_origin)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, african_recipes_data)
             
             conn.commit()
@@ -169,7 +175,7 @@ def save_to_favorites(recipe_id, recipe_name, recipe_url, recipe_description, pr
             cursor.execute("""
                 INSERT INTO favorites (recipe_id, recipe_name, recipe_url, recipe_description, 
                                       preparation_time, cooking_time, covers_count, ingredients_data)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (recipe_id) DO NOTHING
             """, (recipe_id, recipe_name, recipe_url, recipe_description, prep_time, cook_time, covers, ingredients_text))
             conn.commit()
@@ -188,7 +194,7 @@ def remove_from_favorites(recipe_id):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM favorites WHERE recipe_id = %s", (recipe_id,))
+            cursor.execute("DELETE FROM favorites WHERE recipe_id = ?", (recipe_id,))
             conn.commit()
             cursor.close()
             conn.close()
@@ -205,7 +211,7 @@ def is_favorite(recipe_id):
     if conn:
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM favorites WHERE recipe_id = %s", (recipe_id,))
+            cursor.execute("SELECT COUNT(*) FROM favorites WHERE recipe_id = ?", (recipe_id,))
             count = cursor.fetchone()[0]
             cursor.close()
             conn.close()
@@ -243,7 +249,7 @@ def save_search_history(query, results_count):
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO search_history (search_query, results_count)
-                VALUES (%s, %s)
+                VALUES (?, ?)
             """, (query, results_count))
             conn.commit()
             cursor.close()
@@ -261,7 +267,7 @@ def get_search_recommendations():
             cursor.execute("""
                 SELECT search_query, COUNT(*) as frequency
                 FROM search_history
-                WHERE search_date >= NOW() - INTERVAL '30 days'
+                WHERE search_date >= datetime('now', '-30 days')
                 GROUP BY search_query
                 ORDER BY frequency DESC, MAX(search_date) DESC
                 LIMIT 5
@@ -285,7 +291,7 @@ def get_african_recipes(search_query=None):
                     SELECT id, name, description, ingredients, preparation_steps, 
                            preparation_time, cooking_time, serves, country_origin
                     FROM african_recipes
-                    WHERE LOWER(name) LIKE %s OR LOWER(ingredients) LIKE %s OR LOWER(description) LIKE %s
+                    WHERE LOWER(name) LIKE ? OR LOWER(ingredients) LIKE ? OR LOWER(description) LIKE ?
                     ORDER BY name
                 """, (f'%{search_query.lower()}%', f'%{search_query.lower()}%', f'%{search_query.lower()}%'))
             else:
@@ -311,7 +317,7 @@ def generer_liste_courses(recipe_ids):
     if conn:
         try:
             cursor = conn.cursor()
-            placeholders = ','.join(['%s'] * len(recipe_ids))
+            placeholders = ','.join(['?'] * len(recipe_ids))
             cursor.execute(f"""
                 SELECT recipe_name, ingredients_data FROM favorites 
                 WHERE recipe_id IN ({placeholders})
@@ -461,7 +467,7 @@ def afficher_sidebar():
             st.markdown("Clique pour rechercher :")
             
             for recette in RECETTES_AFRICAINES_SUGGEREES:
-                if st.button(f"🍲 {recette}", key=f"suggestion_{recette}", use_container_width=True):
+                if st.button(f"🍲 {recette}", key=f"suggestion_{recette}", width='stretch'):
                     st.session_state.search_query = recette
                     st.rerun()
         
@@ -473,7 +479,7 @@ def afficher_sidebar():
                 st.write(f"**{len(favorites)} recette(s) favorite(s)**")
                 
                 # Bouton pour exporter la liste de courses
-                if st.button("📋 Exporter liste de courses", type="primary", use_container_width=True):
+                if st.button("📋 Exporter liste de courses", type="primary", width='stretch'):
                     recipe_ids = [fav[0] for fav in favorites]
                     recipes_data = generer_liste_courses(recipe_ids)
                     shopping_text = export_shopping_list_text(recipes_data)
@@ -483,7 +489,7 @@ def afficher_sidebar():
                         data=shopping_text,
                         file_name=f"liste_courses_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                         mime="text/plain",
-                        use_container_width=True
+                        width='stretch'
                     )
                 
                 st.divider()
@@ -491,7 +497,7 @@ def afficher_sidebar():
                 for fav in favorites:
                     col1, col2 = st.columns([4, 1])
                     with col1:
-                        if st.button(fav[1][:30] + "...", key=f"fav_view_{fav[0]}", use_container_width=True):
+                        if st.button(fav[1][:30] + "...", key=f"fav_view_{fav[0]}", width='stretch'):
                             if fav[2]:  # Si URL disponible
                                 st.markdown(f"🔗 [Voir la recette]({fav[2]})")
                             st.write(fav[3] if fav[3] else "")
@@ -509,7 +515,7 @@ def afficher_sidebar():
             if recommendations:
                 st.write("Basé sur ton historique :")
                 for rec in recommendations:
-                    if st.button(f"🔍 {rec}", key=f"rec_{rec}", use_container_width=True):
+                    if st.button(f"🔍 {rec}", key=f"rec_{rec}", width='stretch'):
                         st.session_state.search_query = rec
                         st.rerun()
             else:
@@ -525,6 +531,48 @@ def afficher_sidebar():
         if mode_decouverte:
             st.success("Mode fusion activé ! 🎉")
             st.info("Les suggestions de fusion apparaîtront avec tes résultats !")
+
+def enrichir_recherche_avec_ia(query: str) -> Dict[str, any]:
+    """Utilise Gemini pour analyser et enrichir la recherche de recettes africaines"""
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        prompt = f"""Tu es un assistant culinaire spécialisé dans les recettes africaines.
+        
+Requête de recherche: "{query}"
+        
+Analyse cette requête et réponds en JSON avec:
+        {{
+            "est_africain": true/false (si la recherche concerne une recette africaine ou des ingrédients africains),
+            "suggestions_recherche": [liste de 2-3 termes de recherche optimisés pour trouver des recettes africaines ou similaires],
+            "ingredients_cles": [liste des ingrédients africains principaux liés à cette recherche],
+            "conseil": "un conseil court pour adapter/africaniser la recette"
+        }}
+        
+Réponds UNIQUEMENT avec le JSON, sans texte additionnel."""
+        
+        response = model.generate_content(prompt)
+        
+        # Parser la réponse JSON
+        import json
+        result_text = response.text.strip()
+        # Retirer les balises markdown si présentes
+        if result_text.startswith('```'):
+            result_text = result_text.split('\n', 1)[1]
+            result_text = result_text.rsplit('\n', 1)[0]
+            if result_text.endswith('```'):
+                result_text = result_text[:-3]
+        
+        result = json.loads(result_text)
+        return result
+    except Exception as e:
+        st.warning(f"ℹ️ L'IA n'a pas pu analyser la recherche: {str(e)}")
+        return {
+            "est_africain": False,
+            "suggestions_recherche": [query],
+            "ingredients_cles": [],
+            "conseil": ""
+        }
 
 def obtenir_substitution(ingredient: str) -> str:
     """Trouve une substitution pour un ingrédient africain"""
@@ -560,6 +608,12 @@ def afficher_carte_recette(recipe, col, est_substitution=False):
     """Affiche une carte de recette dans une colonne"""
     with col:
         with st.container():
+            # Afficher l'image de la recette si disponible
+            if hasattr(recipe, 'imageUrl') and recipe.imageUrl:
+                st.image(recipe.imageUrl, use_container_width=True)
+            elif not hasattr(recipe, 'imageUrl'):
+                st.info("📷 Image non disponible")
+            
             # Titre et bouton favori
             col_title, col_fav = st.columns([4, 1])
             with col_title:
@@ -728,6 +782,8 @@ def main():
         st.session_state.searched_query_display = ""
     if 'is_substitution' not in st.session_state:
         st.session_state.is_substitution = False
+    if 'ai_analysis' not in st.session_state:
+        st.session_state.ai_analysis = None
     
     # Affichage des éléments principaux
     afficher_titre_principal()
@@ -746,7 +802,7 @@ def main():
     
     with col_button:
         st.markdown("<br>", unsafe_allow_html=True)  # Espacement vertical
-        search_clicked = st.button("🔎 Chercher", type="primary", use_container_width=True)
+        search_clicked = st.button("🔎 Chercher", type="primary", width='stretch')
     
     # Filtres avancés
     with st.expander("🔧 Filtres avancés"):
@@ -765,9 +821,23 @@ def main():
     if search_clicked and query:
         st.session_state.search_query = query
         
-        with st.spinner("🔍 Recherche en cours..."):
+        with st.spinner("🤖 Analyse IA en cours..."):
+            # Analyser la recherche avec l'IA Gemini
+            ai_analysis = enrichir_recherche_avec_ia(query)
+            st.session_state.ai_analysis = ai_analysis
+        
+        with st.spinner("🔍 Recherche de recettes..."):
             # Recherche principale dans Jow
             recipes, searched_query, is_substitution = rechercher_avec_substitution(query)
+            
+            # Si l'IA suggère d'autres termes et peu de résultats, essayer les suggestions
+            if ai_analysis and recipes and len(recipes) < 3 and ai_analysis.get('suggestions_recherche'):
+                for suggestion in ai_analysis['suggestions_recherche'][:2]:
+                    if suggestion.lower() != query.lower():
+                        additional_recipes, _, _ = rechercher_avec_substitution(suggestion)
+                        if additional_recipes:
+                            recipes = list(recipes) if not isinstance(recipes, list) else recipes
+                            recipes.extend(additional_recipes)
             
             # Recherche dans les recettes africaines
             african_recipes = get_african_recipes(query)
@@ -793,8 +863,23 @@ def main():
         african_recipes = st.session_state.african_results
         searched_query = st.session_state.searched_query_display
         is_substitution = st.session_state.is_substitution
+        ai_analysis = st.session_state.ai_analysis
         
         if recipes or african_recipes:
+            # Afficher l'analyse de l'IA
+            if ai_analysis:
+                if ai_analysis.get('est_africain'):
+                    st.success("🌍 🤖 **IA Détectée:** Cette recherche concerne une recette africaine authentique !")
+                
+                if ai_analysis.get('conseil'):
+                    with st.expander("💡 Conseil de l'IA pour africaniser tes recettes"):
+                        st.info(ai_analysis['conseil'])
+                
+                if ai_analysis.get('ingredients_cles'):
+                    st.markdown(f"**🌶️ Ingrédients africains clés:** {', '.join(ai_analysis['ingredients_cles'])}")
+                
+                st.divider()
+            
             # Affichage des résultats principaux
             if is_substitution and recipes:
                 afficher_message_personnalise(st.session_state.search_query, searched_query)
