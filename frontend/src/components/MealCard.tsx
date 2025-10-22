@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Heart, Star, Clock, ChefHat, ExternalLink, Edit3, Plus, Play, Globe } from 'lucide-react'
+import { Heart, Star, Clock, ChefHat, ExternalLink, Edit3, Plus, Play, Globe, Sparkles, MessageSquare } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Meal } from '@/types'
 import { useFavorites } from '@/hooks/useFavorites'
 import { useMeals } from '@/hooks/useMeals'
+import { useMealActions } from '@/hooks/useMealActions'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import StarRating from '@/components/ui/StarRating'
+import MealVariations from '@/components/MealVariations'
 import { cn, getMealTypeIcon, getCuisineIcon, calculateCalories, calculateWeight } from '@/lib/utils'
 
 interface MealCardProps {
@@ -32,8 +35,13 @@ export default function MealCard({
   const [showRating, setShowRating] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
+  const [showVariations, setShowVariations] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
+  const [notes, setNotes] = useState(meal.notes || '')
+  
   const { addFavorite, removeFavorite } = useFavorites()
   const { updateMeal } = useMeals(planId)
+  const { rateMeal, addNotes } = useMealActions()
 
   const handleToggleFavorite = async () => {
     setIsLoading(true)
@@ -49,13 +57,18 @@ export default function MealCard({
   }
 
   const handleRate = async (rating: number) => {
-    setIsLoading(true)
-    await updateMeal(meal.id, { rating })
-    if (onRate) {
+    const success = await rateMeal(meal.id, rating)
+    if (success && onRate) {
       onRate(meal.id, rating)
     }
-    setIsLoading(false)
     setShowRating(false)
+  }
+
+  const handleSaveNotes = async () => {
+    const success = await addNotes(meal.id, notes)
+    if (success) {
+      setShowNotes(false)
+    }
   }
 
   const handleAddToPlan = () => {
@@ -89,7 +102,7 @@ export default function MealCard({
         initial="hidden"
         animate="visible"
         whileHover="hover"
-        className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-orange-200 hover:shadow-md transition-all duration-200"
+        className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-orange-200 hover:shadow-md transition-all duration-200 w-full"
       >
         <div className="flex-shrink-0 relative">
           {meal.image ? (
@@ -155,14 +168,14 @@ export default function MealCard({
     >
       <Card 
         className={cn(
-          "overflow-hidden transition-all duration-300",
+          "overflow-hidden transition-all duration-300 w-full",
           variant === 'featured' && "ring-2 ring-orange-200 shadow-lg"
         )}
         hover={true}
         clickable={true}
       >
         {/* Image avec overlay */}
-        <div className="relative h-48 overflow-hidden">
+        <div className="relative h-52 overflow-hidden rounded-t-2xl">
           {meal.image ? (
             <motion.div
               variants={imageVariants}
@@ -179,8 +192,11 @@ export default function MealCard({
               />
             </motion.div>
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-              <ChefHat size={48} className="text-orange-400" />
+            <div className="w-full h-full bg-gradient-to-br from-orange-50 via-orange-100 to-orange-200 flex items-center justify-center">
+              <div className="text-center">
+                <ChefHat size={48} className="text-orange-400 mx-auto mb-2" />
+                <p className="text-orange-600 text-sm font-medium">Image à venir</p>
+              </div>
             </div>
           )}
           
@@ -191,7 +207,7 @@ export default function MealCard({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center"
+                className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-center justify-center"
               >
                 <div className="flex space-x-2">
                   <Button
@@ -199,7 +215,7 @@ export default function MealCard({
                     variant="ghost"
                     onClick={handleToggleFavorite}
                     disabled={isLoading}
-                    className="bg-white bg-opacity-90 hover:bg-opacity-100"
+                    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                   >
                     <Heart 
                       size={16} 
@@ -212,9 +228,27 @@ export default function MealCard({
                     size="sm"
                     variant="ghost"
                     onClick={() => setShowRating(!showRating)}
-                    className="bg-white bg-opacity-90 hover:bg-opacity-100"
+                    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                   >
                     <Star size={16} />
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowVariations(!showVariations)}
+                    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
+                  >
+                    <Sparkles size={16} />
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowNotes(!showNotes)}
+                    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
+                  >
+                    <MessageSquare size={16} />
                   </Button>
                   
                   {/* Bouton vidéo pour les recettes Jow */}
@@ -223,7 +257,7 @@ export default function MealCard({
                       size="sm"
                       variant="ghost"
                       onClick={() => setShowVideo(!showVideo)}
-                      className="bg-white bg-opacity-90 hover:bg-opacity-100"
+                      className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                     >
                       <Play size={16} />
                     </Button>
@@ -235,7 +269,7 @@ export default function MealCard({
                       size="sm"
                       variant="ghost"
                       onClick={() => window.open(meal.url, '_blank')}
-                      className="bg-white bg-opacity-90 hover:bg-opacity-100"
+                      className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                     >
                       <Globe size={16} />
                     </Button>
@@ -245,7 +279,7 @@ export default function MealCard({
                     size="sm"
                     variant="ghost"
                     onClick={() => console.log('Voir détails:', meal.name)}
-                    className="bg-white bg-opacity-90 hover:bg-opacity-100"
+                    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                   >
                     <ExternalLink size={16} />
                   </Button>
@@ -257,7 +291,7 @@ export default function MealCard({
           {/* Badge cuisine */}
           {meal.cuisine && (
             <div className="absolute top-3 left-3">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-90 text-gray-900">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-white/95 backdrop-blur-sm text-gray-900 shadow-lg border border-white/20">
                 {getCuisineIcon(meal.cuisine)} {meal.cuisine}
               </span>
             </div>
@@ -266,7 +300,7 @@ export default function MealCard({
           {/* Badge Jow */}
           {meal.jowId && (
             <div className="absolute top-3 left-3">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg">
                 🌍 Jow
               </span>
             </div>
@@ -275,7 +309,7 @@ export default function MealCard({
           {/* Badge favori */}
           {meal.isFavorite && (
             <div className="absolute top-3 right-3">
-              <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
                 <Heart size={16} className="text-white fill-current" />
               </div>
             </div>
@@ -426,7 +460,102 @@ export default function MealCard({
             )}
           </AnimatePresence>
 
-          {/* Notes */}
+          {/* Section notation améliorée */}
+          <AnimatePresence>
+            {showRating && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-3 p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-700">Noter cette recette:</p>
+                  <button
+                    onClick={() => setShowRating(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <StarRating 
+                  rating={meal.rating || 0} 
+                  onRate={handleRate}
+                  size="lg"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Section notes */}
+          <AnimatePresence>
+            {showNotes && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-3 p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-700">Notes personnelles:</p>
+                  <button
+                    onClick={() => setShowNotes(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ajoutez vos notes sur cette recette..."
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm resize-none"
+                  rows={3}
+                />
+                <div className="flex justify-end mt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveNotes}
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    Sauvegarder
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Section variations IA */}
+          <AnimatePresence>
+            {showVariations && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-3"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-700">Variations IA</p>
+                  <button
+                    onClick={() => setShowVariations(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <MealVariations 
+                  mealId={meal.id}
+                  currentMealName={meal.name}
+                  onSelectVariation={(variation) => {
+                    console.log('Variation sélectionnée:', variation)
+                    setShowVariations(false)
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Notes existantes */}
           {meal.notes && (
             <div className="flex items-start text-sm text-gray-600 mb-3">
               <Edit3 size={14} className="mr-2 mt-0.5 flex-shrink-0" />
@@ -435,24 +564,26 @@ export default function MealCard({
           )}
 
           {/* Actions */}
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             <Button
               size="sm"
               variant="outline"
               onClick={handleAddToPlan}
-              className="flex-1"
+              className="flex-1 w-full sm:w-auto"
             >
               <Plus size={14} className="mr-1" />
-              Ajouter
+              <span className="hidden xs:inline">Ajouter</span>
+              <span className="xs:hidden">+</span>
             </Button>
             
             <Button
               size="sm"
               variant="primary"
               onClick={() => console.log('Voir détails:', meal.name)}
-              className="flex-1"
+              className="flex-1 w-full sm:w-auto"
             >
-              Voir détails
+              <span className="hidden xs:inline">Voir détails</span>
+              <span className="xs:hidden">Détails</span>
             </Button>
           </div>
         </CardContent>

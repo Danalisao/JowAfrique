@@ -16,7 +16,18 @@ class MealService:
     def get_current_meal(self, day_of_week: str = "Mardi") -> Optional[Dict[str, Any]]:
         """Récupère le repas actuel (par défaut Mardi)"""
         # Logique pour déterminer le repas actuel
-        # Pour l'instant, on prend le premier repas du jour
+        # On prend le repas du jour selon l'heure actuelle
+        from datetime import datetime
+        current_hour = datetime.now().hour
+        
+        # Déterminer le type de repas selon l'heure
+        if 6 <= current_hour < 11:
+            meal_type = 'Petit-déjeuner'
+        elif 11 <= current_hour < 16:
+            meal_type = 'Déjeuner'
+        else:
+            meal_type = 'Dîner'
+        
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -24,9 +35,9 @@ class MealService:
                        jow_recipe_url, main_ingredient, cuisine_type, image_url, 
                        video_url, prep_time, cook_time, is_favorite, rating, notes
                 FROM meal_slots
-                WHERE day_of_week = ? AND meal_type = 'Déjeuner'
+                WHERE day_of_week = ? AND meal_type = ?
                 LIMIT 1
-            """, (day_of_week,))
+            """, (day_of_week, meal_type))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -109,3 +120,30 @@ class MealService:
                 ingredients.update(['avocat', 'lime', 'coriandre', 'fromage', 'tortillas'])
         
         return list(ingredients)
+    
+    def delete_meal(self, meal_id: int) -> bool:
+        """Supprime un repas"""
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM meal_slots WHERE id = ?", (meal_id,))
+            return cursor.rowcount > 0
+    
+    def get_all_meals(self) -> List[Dict[str, Any]]:
+        """Récupère tous les repas"""
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, day_of_week, meal_type, recipe_name, jow_recipe_id, 
+                       jow_recipe_url, main_ingredient, cuisine_type, image_url, 
+                       video_url, prep_time, cook_time, is_favorite, rating, notes
+                FROM meal_slots
+                ORDER BY day_of_week, meal_type
+            """)
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def remove_from_favorites(self, meal_id: int) -> bool:
+        """Supprime un repas des favoris"""
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM favorites WHERE jow_recipe_id = (SELECT jow_recipe_id FROM meal_slots WHERE id = ?)", (meal_id,))
+            return cursor.rowcount > 0

@@ -13,15 +13,20 @@ export const usePlans = () => {
     setLoading(true)
     setError(null)
     
-    const response = await getWeeklyPlans()
-    
-    if (response.success && response.data) {
-      setPlans(response.data)
-    } else {
-      setError(response.error || 'Erreur lors du chargement des plans')
+    try {
+      const response = await getWeeklyPlans()
+      
+      if (response.success && response.data) {
+        setPlans(response.data)
+      } else {
+        setError(response.error || 'Erreur lors du chargement des plans')
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des plans:', error)
+      setError('Impossible de se connecter au serveur. Vérifiez que le backend est démarré.')
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   const createPlan = async (planData: {
@@ -32,34 +37,38 @@ export const usePlans = () => {
     setLoading(true)
     setError(null)
     
-    const response = await createWeeklyPlan(planData)
-    
-    if (response.success && response.data) {
-      setPlans(prev => [response.data!, ...prev])
-      return response.data
-    } else {
-      setError(response.error || 'Erreur lors de la création du plan')
-      return null
+    try {
+      const response = await createWeeklyPlan(planData)
+      
+      if (response.success && response.data) {
+        setPlans(prev => [response.data!, ...prev])
+        return response.data
+      } else {
+        setError(response.error || 'Erreur lors de la création du plan')
+        return null
+      }
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   const removePlan = async (planId: number) => {
     setLoading(true)
     setError(null)
     
-    const response = await deleteWeeklyPlan(planId)
-    
-    if (response.success) {
-      setPlans(prev => prev.filter(plan => plan.id !== planId))
-      return true
-    } else {
-      setError(response.error || 'Erreur lors de la suppression du plan')
-      return false
+    try {
+      const response = await deleteWeeklyPlan(planId)
+      
+      if (response.success) {
+        setPlans(prev => prev.filter(plan => plan.id !== planId))
+        return true
+      } else {
+        setError(response.error || 'Erreur lors de la suppression du plan')
+        return false
+      }
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   useEffect(() => {

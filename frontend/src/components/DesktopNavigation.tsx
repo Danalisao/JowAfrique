@@ -19,14 +19,14 @@ export default function DesktopNavigation({ activeTab, onTabChange }: DesktopNav
   return (
     <div className="desktop-nav">
       {/* Logo/Header */}
-      <div className="p-6 border-b border-brown-200">
+      <div className="p-6 border-b border-brown-200/50 bg-gradient-to-r from-white to-warm-white">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <ChefHat className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-lg">
+            <ChefHat className="w-7 h-7 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-brown-900 font-display">JowCameroun</h1>
-            <p className="text-sm text-brown-600">Planificateur</p>
+            <p className="text-sm text-brown-600 font-medium">Planificateur</p>
           </div>
         </div>
       </div>
@@ -37,10 +37,10 @@ export default function DesktopNavigation({ activeTab, onTabChange }: DesktopNav
           <button
             key={id}
             onClick={() => onTabChange(id as any)}
-            className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 ${
+            className={`w-full flex items-center space-x-3 p-4 rounded-xl transition-all duration-300 ${
               activeTab === id
-                ? 'bg-primary-500 text-white shadow-md'
-                : 'text-brown-700 hover:bg-brown-50 hover:text-brown-900'
+                ? 'bg-gradient-primary text-white shadow-lg transform scale-105'
+                : 'text-brown-700 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100 hover:text-brown-900 hover:shadow-md'
             }`}
           >
             <Icon size={20} />

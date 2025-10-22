@@ -31,11 +31,26 @@ def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, s
     return True, ""
 
 def format_meal_response(meal_data: dict) -> dict:
-    """Formate une réponse de repas pour l'API (dîners uniquement)"""
+    """Formate une réponse de repas pour l'API"""
+    # Déterminer le type de repas basé sur meal_type
+    meal_type_map = {
+        'Petit-déjeuner': 'DÉJEUNER',
+        'Déjeuner': 'DÉJEUNER', 
+        'Dîner': 'DÎNER'
+    }
+    
+    meal_type = meal_type_map.get(meal_data.get('meal_type', 'Dîner'), 'DÎNER')
+    
+    # Heure par défaut selon le type
+    time_map = {
+        'DÉJEUNER': '12:00',
+        'DÎNER': '19:00'
+    }
+    
     return {
         'id': meal_data['id'],
-        'type': 'DÎNER',  # Toujours dîner
-        'time': '19:00',  # Heure fixe pour les dîners
+        'type': meal_type,
+        'time': time_map.get(meal_type, '19:00'),
         'name': meal_data['recipe_name'],
         'calories': f"{meal_data['prep_time'] * 10 + meal_data['cook_time'] * 5} kcal" if meal_data['prep_time'] and meal_data['cook_time'] else "N/A",
         'weight': f"{meal_data['prep_time'] * 15} gm" if meal_data['prep_time'] else "N/A",
@@ -52,7 +67,7 @@ def format_meal_response(meal_data: dict) -> dict:
         'rating': meal_data['rating'] or 0,
         'notes': meal_data['notes'],
         'dayOfWeek': meal_data['day_of_week'],
-        'mealType': 'Dîner'  # Toujours dîner
+        'mealType': meal_data.get('meal_type', 'Dîner')
     }
 
 # ============================================================================
@@ -63,8 +78,19 @@ def format_meal_response(meal_data: dict) -> dict:
 def get_plans():
     """Récupère tous les plans hebdomadaires"""
     try:
-        plans = plan_service.get_plans()
-        return jsonify(plans)
+        plans_data = plan_service.get_plans()
+        # Formater les plans pour correspondre au format frontend
+        formatted_plans = []
+        for plan in plans_data:
+            formatted_plans.append({
+                'id': plan['id'],
+                'planName': plan['plan_name'],
+                'weekStartDate': plan['week_start_date'],
+                'totalBudgetEstimate': plan['total_budget_estimate'],
+                'generatedByAi': bool(plan['generated_by_ai']),
+                'createdAt': plan['created_at']
+            })
+        return jsonify(formatted_plans)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -210,6 +236,28 @@ def update_meal(meal_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/meals/<int:meal_id>', methods=['DELETE'])
+def delete_meal(meal_id):
+    """Supprime un repas"""
+    try:
+        success = meal_service.delete_meal(meal_id)
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Repas non trouvé'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/meals', methods=['GET'])
+def get_all_meals():
+    """Récupère tous les repas"""
+    try:
+        meals_data = meal_service.get_all_meals()
+        meals = [format_meal_response(meal) for meal in meals_data]
+        return jsonify(meals)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/meals/<int:meal_id>/favorite', methods=['POST'])
 def toggle_favorite(meal_id):
     """Bascule le statut favori d'un repas"""
@@ -303,6 +351,18 @@ def get_favorites():
             """)
             favorites = [dict(row) for row in cursor.fetchall()]
             return jsonify(favorites)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/favorites/<int:meal_id>', methods=['DELETE'])
+def remove_from_favorites(meal_id):
+    """Supprime un repas des favoris"""
+    try:
+        success = meal_service.remove_from_favorites(meal_id)
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Favori non trouvé'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

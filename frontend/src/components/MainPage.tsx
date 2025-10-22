@@ -46,7 +46,7 @@ export default function MainPage({ selectedDate, onDateChange, selectedPlanId }:
       {/* Layout principal - responsive */}
       <div className="px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <div className="max-w-8xl mx-auto">
-          <div className="lg:grid lg:grid-cols-12 lg:gap-8 xl:gap-12 2xl:gap-16">
+          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-8 xl:gap-12 2xl:gap-16">
             {/* Colonne gauche - Date Picker */}
             <div className="lg:col-span-4 xl:col-span-3">
               {/* Date Picker */}
@@ -60,7 +60,9 @@ export default function MainPage({ selectedDate, onDateChange, selectedPlanId }:
 
             {/* Colonne centre - Repas planifiés */}
             <div className="lg:col-span-5 xl:col-span-6">
-              <div className="meal-card-grid">
+              {/* Version mobile/tablet - grille responsive */}
+              <div className="block lg:hidden">
+                <div className="meal-card-grid">
         {loading && (
           <div className="col-span-full text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
@@ -102,6 +104,57 @@ export default function MainPage({ selectedDate, onDateChange, selectedPlanId }:
             planId={selectedPlanId}
           />
         ))}
+                </div>
+              </div>
+
+              {/* Version desktop - défilement horizontal */}
+              <div className="hidden lg:block">
+                <div className="meal-card-grid-horizontal">
+        {loading && (
+          <div className="flex items-center justify-center w-full h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            <p className="text-brown-600 mt-2 ml-3">Chargement des repas...</p>
+          </div>
+        )}
+        
+        {error && (
+          <div className="flex items-center justify-center w-full h-64">
+            <div className="text-center">
+              <p className="text-red-500 mb-4">{error}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="btn-primary px-4 py-2"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {!loading && !error && meals.length === 0 && (
+          <div className="flex items-center justify-center w-full h-64">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🍽️</div>
+              <h3 className="text-xl font-semibold text-brown-900 mb-2">Aucun repas planifié</h3>
+              <p className="text-brown-600 mb-6">Pour cette date, vous n'avez pas encore de repas prévu. Créez votre premier repas !</p>
+              <button className="btn-primary px-6 py-3 text-lg font-semibold">
+                Planifier un repas
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {!loading && !error && meals.map((meal) => (
+          <div key={meal.id} className="meal-card-horizontal">
+            <MealCard 
+              meal={meal}
+              onToggleFavorite={handleToggleFavorite}
+              onRate={handleRate}
+              planId={selectedPlanId}
+            />
+          </div>
+        ))}
+                </div>
               </div>
             </div>
 

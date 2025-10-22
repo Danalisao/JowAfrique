@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Plus, Trash2, ChefHat, Clock } from 'lucide-react'
+import { Calendar, Plus, Trash2, ChefHat, Clock, Sparkles, Activity, ShoppingCart } from 'lucide-react'
 import { usePlans } from '@/hooks/usePlans'
 import { useMeals } from '@/hooks/useMeals'
 import { useShoppingList } from '@/hooks/useShoppingList'
+import { useAiFeatures } from '@/hooks/useAiFeatures'
 import { UserPreferences } from '@/types'
+import { Button } from '@/components/ui/Button'
+import NutritionAnalysis from '@/components/NutritionAnalysis'
 
 interface PlansPageProps {
   onSelectPlan?: (planId: number) => void
@@ -16,8 +19,11 @@ export default function PlansPage({ onSelectPlan, selectedPlanId }: PlansPagePro
   const { plans, loading, error, createPlan, removePlan } = usePlans()
   const { meals } = useMeals(selectedPlanId ?? null)
   const { ingredients, loading: shoppingLoading, generateList } = useShoppingList()
+  const { generatePlanWithAi, optimizeShopping } = useAiFeatures()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showShoppingList, setShowShoppingList] = useState(false)
+  const [showNutritionAnalysis, setShowNutritionAnalysis] = useState(false)
+  const [showAiCreateForm, setShowAiCreateForm] = useState(false)
 
   const handleCreatePlan = async (formData: FormData) => {
     const planName = formData.get('planName') as string
@@ -45,6 +51,41 @@ export default function PlansPage({ onSelectPlan, selectedPlanId }: PlansPagePro
       if (onSelectPlan) {
         onSelectPlan(newPlan.id)
       }
+    }
+  }
+
+  const handleCreateAiPlan = async (formData: FormData) => {
+    const planName = formData.get('planName') as string
+    const weekStartDate = formData.get('weekStartDate') as string
+    const cuisines = formData.getAll('cuisines') as string[]
+    const budget = formData.get('budget') as string
+    const light = formData.get('light') === 'on'
+    const vegetarian = formData.get('vegetarian') === 'on'
+
+    const preferences: UserPreferences = {
+      cuisines,
+      budget: budget as 'économique' | 'modéré' | 'cher',
+      light,
+      vegetarian
+    }
+
+    const newPlan = await generatePlanWithAi({
+      planName,
+      weekStartDate,
+      preferences
+    })
+
+    if (newPlan) {
+      setShowAiCreateForm(false)
+      if (onSelectPlan) {
+        onSelectPlan(newPlan.id)
+      }
+    }
+  }
+
+  const handleOptimizeShopping = async () => {
+    if (selectedPlanId) {
+      await optimizeShopping(selectedPlanId, 50) // Budget par défaut de 50€
     }
   }
 
@@ -252,6 +293,20 @@ export default function PlansPage({ onSelectPlan, selectedPlanId }: PlansPagePro
                   <ChefHat size={16} />
                 </button>
                 <button
+                  onClick={() => setShowNutritionAnalysis(!showNutritionAnalysis)}
+                  className="text-brown-400 hover:text-green-500"
+                  title="Analyse nutritionnelle"
+                >
+                  <Activity size={16} />
+                </button>
+                <button
+                  onClick={() => handleOptimizeShopping()}
+                  className="text-brown-400 hover:text-purple-500"
+                  title="Optimiser liste de courses"
+                >
+                  <Sparkles size={16} />
+                </button>
+                <button
                   onClick={() => removePlan(plan.id)}
                   className="text-brown-400 hover:text-red-500"
                   title="Supprimer"
@@ -297,6 +352,142 @@ export default function PlansPage({ onSelectPlan, selectedPlanId }: PlansPagePro
           </div>
         ))}
       </div>
+
+      {/* Boutons de création de plan */}
+      <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+        <Button
+          onClick={() => setShowCreateForm(true)}
+          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium"
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Créer un Plan Manuel
+        </Button>
+        
+        <Button
+          onClick={() => setShowAiCreateForm(true)}
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-lg font-medium"
+        >
+          <Sparkles className="w-5 h-5 mr-2" />
+          Générer avec l'IA
+        </Button>
+      </div>
+
+      {/* Section analyse nutritionnelle */}
+      {showNutritionAnalysis && selectedPlanId && (
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+              <Activity className="w-5 h-5 mr-2 text-green-600" />
+              Analyse Nutritionnelle
+            </h3>
+            <button
+              onClick={() => setShowNutritionAnalysis(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          <NutritionAnalysis planId={selectedPlanId} />
+        </div>
+      )}
+
+      {/* Formulaire de création de plan IA */}
+      {showAiCreateForm && (
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+              <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
+              Créer un Plan avec l'IA
+            </h3>
+            <button
+              onClick={() => setShowAiCreateForm(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <form action={handleCreateAiPlan} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nom du plan
+              </label>
+              <input
+                type="text"
+                name="planName"
+                required
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Plan IA Cameroun"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Date de début
+              </label>
+              <input
+                type="date"
+                name="weekStartDate"
+                required
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cuisines préférées
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {['cameroun', 'asiatique', 'mexican', 'french'].map((cuisine) => (
+                  <label key={cuisine} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="cuisines"
+                      value={cuisine}
+                      defaultChecked={cuisine === 'cameroun'}
+                      className="mr-2"
+                    />
+                    <span className="text-sm capitalize">{cuisine}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Budget
+              </label>
+              <select
+                name="budget"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="économique">Économique</option>
+                <option value="modéré" selected>Modéré</option>
+                <option value="cher">Cher</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center">
+                <input type="checkbox" name="light" className="mr-2" />
+                <span className="text-sm">Repas légers</span>
+              </label>
+              <label className="flex items-center">
+                <input type="checkbox" name="vegetarian" className="mr-2" />
+                <span className="text-sm">Végétarien</span>
+              </label>
+            </div>
+            
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-3 rounded-lg font-medium"
+            >
+              <Sparkles className="w-5 h-5 mr-2" />
+              Générer le Plan avec l'IA
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
