@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Clock, ChefHat, Rocket } from 'lucide-react'
 import MealCard from './MealCard'
 import { Meal } from '@/types'
+import { logger } from '@/lib/logger'
 
 interface ProgressPageProps {
   stage: 'pre-cooking' | 'cooking' | 'delivery'
@@ -105,7 +106,7 @@ export default function ProgressPage({ stage, onStageChange }: ProgressPageProps
           setMeal(data)
         }
       } catch (err) {
-        console.error('Erreur chargement repas:', err)
+        logger.componentError('ProgressPage', 'loadMeals', err)
       } finally {
         setLoading(false)
       }

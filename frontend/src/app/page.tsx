@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useApp } from '@/providers/AppContext'
+import { NAVIGATION_TABS } from '@/lib/constants'
 import StatusBar from '@/components/StatusBar'
 import BottomNavigation from '@/components/BottomNavigation'
 import DesktopNavigation from '@/components/DesktopNavigation'
@@ -12,68 +13,68 @@ import CartPage from '@/components/CartPage'
 import PlansPage from '@/components/PlansPage'
 import StatisticsPage from '@/components/StatisticsPage'
 
+// Mapping des pages par onglet
+const PAGES = {
+  [NAVIGATION_TABS.HOME]: MainPage,
+  [NAVIGATION_TABS.PROGRESS]: ProgressPage,
+  [NAVIGATION_TABS.FAVORITES]: FavoritesPage,
+  [NAVIGATION_TABS.SETTINGS]: SettingsPage,
+  [NAVIGATION_TABS.CART]: CartPage,
+  [NAVIGATION_TABS.PLANS]: PlansPage,
+  [NAVIGATION_TABS.STATISTICS]: StatisticsPage,
+} as const
+
+/**
+ * Page principale (root layout)
+ * Utilise le contexte global pour l'état et affiche la page appropriée
+ */
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'home' | 'progress' | 'favorites' | 'settings' | 'cart' | 'plans' | 'statistics'>('home')
-  const [selectedDate, setSelectedDate] = useState(2) // Mardi - pour les dîners
-  const [progressStage, setProgressStage] = useState<'pre-cooking' | 'cooking' | 'delivery'>('pre-cooking')
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(1)
+  const { activeTab, selectedDate, onDateChange, selectedPlanId, onSelectPlan, progressStage, onProgressStageChange } = useApp()
+
+  // Récupère le composant de page approprié
+  const CurrentPage = PAGES[activeTab]
+
+  // Props dynamiques selon la page
+  const getPageProps = () => {
+    switch (activeTab) {
+      case NAVIGATION_TABS.HOME:
+        return {
+          selectedDate,
+          onDateChange,
+          selectedPlanId,
+        }
+      case NAVIGATION_TABS.PROGRESS:
+        return {
+          stage: progressStage,
+          onStageChange: onProgressStageChange,
+        }
+      case NAVIGATION_TABS.PLANS:
+        return {
+          onSelectPlan,
+          selectedPlanId,
+        }
+      default:
+        return {}
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--light-cream)' }}>
       {/* Desktop Navigation */}
-      <DesktopNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-      
+      <DesktopNavigation activeTab={activeTab} onTabChange={useApp().setActiveTab} />
+
       {/* Mobile Status Bar */}
       <div className="lg:hidden">
         <StatusBar />
       </div>
-      
+
       <main className="desktop-main pb-20 lg:pb-0">
-        {activeTab === 'home' && (
-          <MainPage 
-            selectedDate={selectedDate} 
-            onDateChange={setSelectedDate}
-            selectedPlanId={selectedPlanId}
-          />
-        )}
-        
-        {activeTab === 'progress' && (
-          <ProgressPage 
-            stage={progressStage}
-            onStageChange={setProgressStage}
-          />
-        )}
-        
-        {activeTab === 'favorites' && (
-          <FavoritesPage />
-        )}
-        
-        {activeTab === 'plans' && (
-          <PlansPage 
-            onSelectPlan={setSelectedPlanId}
-            selectedPlanId={selectedPlanId}
-          />
-        )}
-        
-        {activeTab === 'statistics' && (
-          <StatisticsPage />
-        )}
-        
-        {activeTab === 'settings' && (
-          <SettingsPage />
-        )}
-        
-        {activeTab === 'cart' && (
-          <CartPage />
-        )}
+        <CurrentPage {...getPageProps()} />
       </main>
-      
+
       {/* Mobile Bottom Navigation */}
       <div className="lg:hidden">
-        <BottomNavigation 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab}
-        />
+        <BottomNavigation activeTab={activeTab} onTabChange={useApp().setActiveTab} />
       </div>
     </div>
   )

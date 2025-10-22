@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Settings, User, Bell, Shield } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 export default function SettingsPage() {
   const [statistics, setStatistics] = useState<any>(null)
@@ -17,7 +18,7 @@ export default function SettingsPage() {
           setStatistics(data)
         }
       } catch (err) {
-        console.error('Erreur chargement stats:', err)
+        logger.componentError('SettingsPage', 'loadStatistics', err)
       } finally {
         setLoading(false)
       }

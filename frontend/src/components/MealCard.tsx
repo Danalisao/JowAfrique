@@ -73,8 +73,7 @@ export default function MealCard({
 
   const handleAddToPlan = () => {
     // Logique pour ajouter à un plan de dîners
-    console.log('Ajouter ce dîner au plan:', meal.name)
-    // TODO: Implémenter la logique d'ajout au plan de dîners
+    // Note: Fonctionnalité à implémenter dans une future version
   }
 
   const cardVariants = {
@@ -278,7 +277,7 @@ export default function MealCard({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => console.log('Voir détails:', meal.name)}
+                    onClick={() => {/* Voir détails - à implémenter */}}
                     className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
                   >
                     <ExternalLink size={16} />
@@ -547,7 +546,7 @@ export default function MealCard({
                   mealId={meal.id}
                   currentMealName={meal.name}
                   onSelectVariation={(variation) => {
-                    console.log('Variation sélectionnée:', variation)
+                    // Variation sélectionnée - logique à implémenter
                     setShowVariations(false)
                   }}
                 />
@@ -579,7 +578,7 @@ export default function MealCard({
             <Button
               size="sm"
               variant="primary"
-              onClick={() => console.log('Voir détails:', meal.name)}
+              onClick={() => {/* Voir détails - à implémenter */}}
               className="flex-1 w-full sm:w-auto"
             >
               <span className="hidden xs:inline">Voir détails</span>

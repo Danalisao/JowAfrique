@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { logger } from '@/lib/logger'
 import { WeeklyPlan, Meal, UserPreferences, Statistics, ApiResponse } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
@@ -16,7 +17,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.code === 'ECONNREFUSED') {
-      console.error('API non disponible. Vérifiez que le backend est démarré sur le port 5000.')
+      logger.error('API non disponible. Vérifiez que le backend est démarré sur le port 5000.')
     }
     return Promise.reject(error)
   }
@@ -28,7 +29,7 @@ export const getWeeklyPlans = async (): Promise<ApiResponse<WeeklyPlan[]>> => {
     const response = await api.get('/api/plans')
     return { success: true, data: response.data }
   } catch (error: any) {
-    console.error('Erreur API getWeeklyPlans:', error)
+    logger.apiError('getWeeklyPlans', error)
     if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
       return { success: false, error: 'Serveur non disponible. Vérifiez que le backend est démarré.' }
     }

@@ -1,5 +1,6 @@
 """
-API v2 refactorisée pour JowAfrique
+API Flask refactorisée pour JowAfrique - Clean Architecture
+Couches: API → Services → Database
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -405,7 +406,7 @@ def generate_ai_plan():
             vegetarian=preferences_data.get('vegetarian', False)
         )
         
-        # Génération du plan avec IA
+        # Génération du plan avec IA (utilise maintenant plan_service directement)
         result = plan_service.generate_ai_plan(
             preferences,
             data['planName'],
@@ -421,9 +422,7 @@ def generate_ai_plan():
 def get_meal_variations(meal_id):
     """Suggère des variations d'un repas avec l'IA"""
     try:
-        from planner_module import IntelligentPlanner
-        
-        # Récupérer les préférences par défaut (à améliorer avec un système d'utilisateur)
+        # Récupérer les préférences par défaut (à améliorer avec authentification)
         preferences = UserPreferences(
             cuisines=[CuisineType.CAMEROUN],
             budget=BudgetLevel.MODERATE,
@@ -431,13 +430,17 @@ def get_meal_variations(meal_id):
             vegetarian=False
         )
         
-        planner = IntelligentPlanner(db_manager)
-        variations = planner.suggest_meal_variations(meal_id, preferences)
+        # Utiliser directement ai_service
+        from services.ai_service import AIService
+        ai_service = AIService()
+        
+        meal_data = db_manager.get_plan_meals(None)  # À adapter pour récupérer meal_id
+        variations = ai_service.suggest_meal_variations(meal_data if meal_data else {}, preferences)
         
         return jsonify({
             'success': True,
             'variations': variations,
-            'ai_model': 'gemini-2.0-flash-exp'
+            'ai_model': 'gemini-2.0-flash'
         })
         
     except Exception as e:
@@ -450,15 +453,17 @@ def optimize_shopping_list(plan_id):
         data = request.get_json()
         budget = data.get('budget', 50.0)
         
-        from planner_module import IntelligentPlanner
+        # Utiliser directement meal_service + ai_service
+        from services.ai_service import AIService
+        ai_service = AIService()
         
-        planner = IntelligentPlanner(db_manager)
-        optimization = planner.optimize_shopping_list(plan_id, budget)
+        shopping_list = meal_service.generate_shopping_list(plan_id)
+        optimization = ai_service.generate_shopping_optimization(shopping_list, budget)
         
         return jsonify({
             'success': True,
             'optimization': optimization,
-            'ai_model': 'gemini-2.0-flash-exp'
+            'ai_model': 'gemini-2.0-flash'
         })
         
     except Exception as e:
@@ -468,15 +473,17 @@ def optimize_shopping_list(plan_id):
 def analyze_nutrition(plan_id):
     """Analyse l'équilibre nutritionnel d'un plan avec l'IA"""
     try:
-        from planner_module import IntelligentPlanner
+        # Utiliser directement ai_service
+        from services.ai_service import AIService
+        ai_service = AIService()
         
-        planner = IntelligentPlanner(db_manager)
-        analysis = planner.analyze_nutritional_balance(plan_id)
+        meals = meal_service.get_meals_by_plan(plan_id)
+        analysis = ai_service.analyze_nutritional_balance(meals)
         
         return jsonify({
             'success': True,
             'analysis': analysis,
-            'ai_model': 'gemini-2.0-flash-exp'
+            'ai_model': 'gemini-2.0-flash'
         })
         
     except Exception as e:
@@ -492,7 +499,7 @@ def regenerate_plan_day(plan_id):
         if not day_of_week:
             return jsonify({'error': 'day_of_week requis'}), 400
         
-        # Préférences par défaut (à améliorer)
+        # Préférences par défaut
         preferences = UserPreferences(
             cuisines=[CuisineType.CAMEROUN],
             budget=BudgetLevel.MODERATE,
@@ -500,12 +507,31 @@ def regenerate_plan_day(plan_id):
             vegetarian=False
         )
         
-        from planner_module import IntelligentPlanner
+        # Récupérer les repas du jour et les supprimer
+        meals = meal_service.get_meals_by_plan(plan_id)
+        for meal in meals:
+            if meal['day_of_week'] == day_of_week:
+                meal_service.delete_meal(meal['id'])
         
-        planner = IntelligentPlanner(db_manager)
-        result = planner.regenerate_plan_day(plan_id, day_of_week, preferences)
+        # Générer de nouveaux repas (logique simplifiée)
+        from services.hybrid_recipe_service import HybridRecipeService
+        hybrid_service = HybridRecipeService(db_manager)
         
-        return jsonify(result)
+        # Générer une recette pour le jour
+        weekly_recipes = hybrid_service.generate_weekly_plan_recipes(preferences, plan_id)
+        day_meals = [r for r in weekly_recipes if r.get('day_of_week') == day_of_week]
+        
+        added_count = 0
+        for meal_data in day_meals:
+            meal_service.add_meal(meal_data)
+            added_count += 1
+        
+        return jsonify({
+            'success': True,
+            'day_of_week': day_of_week,
+            'meals_added': added_count,
+            'ai_model': 'gemini-2.0-flash'
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

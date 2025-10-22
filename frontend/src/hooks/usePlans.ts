@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { WeeklyPlan, UserPreferences } from '@/types'
 import { getWeeklyPlans, createWeeklyPlan, deleteWeeklyPlan } from '@/services/api'
+import { logger } from '@/lib/logger'
 
 export const usePlans = () => {
   const [plans, setPlans] = useState<WeeklyPlan[]>([])
@@ -22,7 +23,7 @@ export const usePlans = () => {
         setError(response.error || 'Erreur lors du chargement des plans')
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des plans:', error)
+      logger.componentError('usePlans', 'fetchPlans', error)
       setError('Impossible de se connecter au serveur. Vérifiez que le backend est démarré.')
     } finally {
       setLoading(false)

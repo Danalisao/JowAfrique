@@ -21,7 +21,7 @@ class AIService:
         
         # Configuration de Gemini
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
         
     def generate_weekly_plan(self, preferences: UserPreferences, 
                            plan_name: str, week_start_date: date,
@@ -45,14 +45,14 @@ class AIService:
             return {
                 'success': True,
                 'data': plan_data,
-                'ai_model': 'gemini-2.0-flash-exp'
+                'ai_model': 'gemini-2.5-flash'
             }
             
         except Exception as e:
             return {
                 'success': False,
                 'error': f"Erreur Gemini AI: {str(e)}",
-                'ai_model': 'gemini-2.0-flash-exp'
+                'ai_model': 'gemini-2.5-flash'
             }
     
     def _build_planning_prompt(self, preferences: UserPreferences, 
